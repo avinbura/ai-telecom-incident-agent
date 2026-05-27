@@ -1,0 +1,15 @@
+Telecom Network Operations SOP
+
+1. If packet loss is above 10 percent and latency is above 250 ms, classify the incident as critical.
+
+2. If packet loss is between 5 and 10 percent, classify the incident as medium severity.
+
+3. If packet loss is below 5 percent and latency is below 150 ms, classify the incident as low severity.
+
+4. If backhaul link flapping is detected, possible root cause is backhaul instability or fiber provider issue.
+
+5. If power backup warning appears, possible root cause is power issue at tower site.
+
+6. For critical incidents, escalate to the Network Operations Center immediately.
+
+7. For low severity incidents, continue monitoring unless repeated alarms occur. 
