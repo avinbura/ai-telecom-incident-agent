@@ -1,6 +1,7 @@
 import json
 from typing import TypedDict, List
 from langgraph.graph import StateGraph, END
+from app.mongo_db import logs_collection
 
 class IncidentState(TypedDict):
     tower_id: str
@@ -27,14 +28,15 @@ def analyze_severity_node(state: IncidentState):
     return {"severity": severity}
 
 def retrieve_logs_node(state:IncidentState):
-    with open("app/sample_logs.json", "r") as file:
-        all_logs = json.load(file)
+    mongo_logs = logs_collection.find(
+        {"tower_id": state["tower_id"]},
+        {"_id": 0, "message": 1}
+    )
     
     matching_logs = []
 
-    for log in all_logs:
-        if log["tower_id"] == state["tower_id"]:
-            matching_logs.append(log["message"])
+    for log in mongo_logs:    
+        matching_logs.append(log["message"])
     
     return {"logs": matching_logs}
 
