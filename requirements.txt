@@ -4,3 +4,11 @@ langgraph
 langchain
 langchain-openai
 python-dotenv
+chromaDB
+sqlalchemy
+psycopg2-binary
+pymongo
+redis
+chromadb
+langchain-openai
+python-dotenv

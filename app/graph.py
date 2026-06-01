@@ -2,6 +2,8 @@ import json
 from typing import TypedDict, List
 from langgraph.graph import StateGraph, END
 from app.mongo_db import logs_collection
+from app.vector_db import sop_collection
+from app.llm_gateway import generate_incident_summary
 
 class IncidentState(TypedDict):
     tower_id: str
@@ -16,6 +18,7 @@ class IncidentState(TypedDict):
     escalation_team: str
     sop_guidelines: str
     ai_summary: str
+    agents_executed: List[str]
 
 def analyze_severity_node(state: IncidentState):
     if state["packet_loss"] > 10 and state["latency_ms"] > 250:
@@ -25,7 +28,9 @@ def analyze_severity_node(state: IncidentState):
     else:
         severity = "low"
     
-    return {"severity": severity}
+    return {"severity": severity,
+            "agents_executed": state["agents_executed"] + ["SeverityAnalysisAgent"]
+        }
 
 def retrieve_logs_node(state:IncidentState):
     mongo_logs = logs_collection.find(
@@ -38,13 +43,29 @@ def retrieve_logs_node(state:IncidentState):
     for log in mongo_logs:    
         matching_logs.append(log["message"])
     
-    return {"logs": matching_logs}
+    return {"logs": matching_logs,
+            "agents_executed": state["agents_executed"] + ["MongoLogRetrievalAgent"]
+        }
 
 def read_sop_node(state: IncidentState):
-    with open("app/telecom_sop.txt", "r") as file:
-        sop_text = file.read()
 
-    return {"sop_guidelines": sop_text}
+    query_text = (
+        f"{state['issue']} "
+        f"{' '.join(state['logs'])}"
+    )
+
+    results = sop_collection.query(
+        query_texts=[query_text],
+        n_results=3
+    )
+
+    retrieved_docs = results["documents"][0]
+
+    sop_text = "\n".join(retrieved_docs)
+
+    return {"sop_guidelines": sop_text,
+            "agents_executed": state["agents_executed"] + ["RAGSOPRetrievalAgent"]
+        }
 
 def root_cause_node(state: IncidentState):
     logs_text= " " .join(state["logs"]).lower()
@@ -58,7 +79,9 @@ def root_cause_node(state: IncidentState):
     else:
         root_cause = "Root cause unclear. More logs are needed."
     
-    return {"root_cause": root_cause}
+    return {"root_cause": root_cause,
+            "agents_executed": state["agents_executed"] + ["RootCauseAnalysisAgent"]
+        }
 
 def recommendation_node(state: IncidentState):
     if state["severity"] == "critical":
@@ -68,19 +91,22 @@ def recommendation_node(state: IncidentState):
     else:
         recommendation = "Continue monitoring."
 
-    return {"recommendation": recommendation}
+    return {"recommendation": recommendation,
+            "agents_executed": state["agents_executed"] + ["RecommendationAgent"]
+        }
 
 def escalation_node(state: IncidentState):
     return {
-        "escalation_required": True,
-        "escalation_team": "Network Operations Center"
-    }
-
+    "escalation_required": True,
+    "escalation_team": "Network Operations Center",
+    "agents_executed": state["agents_executed"] + ["EscalationDecisionAgent"]
+}
 
 def no_escalation_node(state: IncidentState):
     return {
         "escalation_required": False,
-        "escalation_team": "Not required"
+        "escalation_team": "Not required",
+        "agents_executed": state["agents_executed"] + ["EscalationDecisionAgent"]
     }
 
 
@@ -92,29 +118,32 @@ def route_escalation(state: IncidentState):
 
 
 def summary_node(state: IncidentState):
-    ai_summary = f"""
-Tower {state["tower_id"]} is experiencing a {state["severity"]} network issue.
 
-Issue detected:
-{state["issue"]}
+    prompt = f"""
+You are a telecom Network Operations Center assistant.
 
-Possible root cause:
-{state["root_cause"]}
+Create a clear incident summary using the information below.
 
-Recommended action:
-{state["recommendation"]}
+Tower ID: {state["tower_id"]}
+Issue: {state["issue"]}
+Packet Loss: {state["packet_loss"]}%
+Latency: {state["latency_ms"]} ms
+Logs: {state["logs"]}
+Severity: {state["severity"]}
+Root Cause: {state["root_cause"]}
+Recommendation: {state["recommendation"]}
+Escalation Required: {state["escalation_required"]}
+Escalation Team: {state["escalation_team"]}
+Relevant SOP Guidance: {state["sop_guidelines"]}
 
-Escalation required:
-{state["escalation_required"]}
-
-Escalation team:
-{state["escalation_team"]}
-
-SOP reference used:
-{state["sop_guidelines"]}
+Write the summary in a professional telecom operations style.
 """
 
-    return {"ai_summary": ai_summary}
+    ai_summary = generate_incident_summary(prompt)
+
+    return {"ai_summary": ai_summary,
+            "agents_executed": state["agents_executed"] + ["LLMSummaryAgent"]
+        }
 
 
 def build_incident_graph():
