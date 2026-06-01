@@ -19,3 +19,9 @@ def save_incident(db, result: dict):
     db.refresh(incident)
 
     return incident
+
+def get_all_incidents(db):
+    return db.query(Incident).order_by(Incident.id.desc()).all()
+
+def get_incident_by_id(db,incident_id: int):
+    return db.query(Incident).filter(Incident.id == incident_id).first()

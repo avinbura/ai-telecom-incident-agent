@@ -39,3 +39,10 @@ The system then follows this workflow:
 
 ```text
 POST /analyze-alert
+Version 3 added:
+- ChromaDB vector database
+- RAG-based SOP retrieval
+- LLM Gateway with fallback handling
+- Multi-agent execution tracking
+- Postman API testing
+- Incident history APIs
