@@ -46,3 +46,33 @@ Version 3 added:
 - Multi-agent execution tracking
 - Postman API testing
 - Incident history APIs
+
+
+## Version 4 - Kafka Event Streaming
+
+Version 4 adds real-time telecom event streaming using Kafka.
+
+### New Features
+
+- Kafka producer for simulated telecom alerts
+- Kafka consumer for receiving streaming alerts
+- Consumer automatically calls FastAPI `/analyze-alert`
+- Events are processed by LangGraph multi-agent workflow
+- Results are stored in PostgreSQL
+- Redis prevents duplicate repeated processing
+
+### Kafka Flow
+
+```text
+Kafka Producer
+    ↓
+telecom-alerts topic
+    ↓
+Kafka Consumer
+    ↓
+FastAPI /analyze-alert
+    ↓
+LangGraph Multi-Agent Workflow
+    ↓
+PostgreSQL Incident Storage
+

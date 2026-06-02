@@ -145,7 +145,6 @@ Write the summary in a professional telecom operations style.
             "agents_executed": state["agents_executed"] + ["LLMSummaryAgent"]
         }
 
-
 def build_incident_graph():
     graph = StateGraph(IncidentState)
 

@@ -12,3 +12,5 @@ redis
 chromadb
 langchain-openai
 python-dotenv
+kafka-python
+requests
