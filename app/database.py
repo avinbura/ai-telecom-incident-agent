@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "postgresql://postgres:123456@localhost:5432/telecom_ai_db"
+DATABASE_URL = "postgresql://postgres:123456@host.docker.internal:5432/telecom_ai_db"
 
 engine = create_engine(DATABASE_URL)
 
