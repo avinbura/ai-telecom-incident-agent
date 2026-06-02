@@ -76,3 +76,33 @@ LangGraph Multi-Agent Workflow
     ↓
 PostgreSQL Incident Storage
 
+
+## Version 5 - PySpark, Databricks, and Delta Lake
+
+Version 5 adds the data engineering layer to the Telecom AI Incident Agent project.
+
+### New Data Sources
+
+- Hugging Face telecom customer dataset
+- Synthetic telecom incident dataset with 10,000 records
+- PostgreSQL incident export from the application database
+
+### New Features
+
+- PySpark analytics pipeline
+- Multi-source CSV ingestion
+- Databricks notebook execution
+- Delta Lake table creation
+- Bronze/Silver/Gold data architecture
+
+### Data Lake Architecture
+
+```text
+Raw CSV Data
+    ↓
+Bronze Table - raw telecom incidents
+    ↓
+Silver Table - cleaned and deduplicated incidents
+    ↓
+Gold Table - analytics-ready KPIs
+
