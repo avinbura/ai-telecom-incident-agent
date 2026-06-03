@@ -1,0 +1,14 @@
+name: telecom-ai-agent
+
+metadata:
+  template: telecom-ai-agent@0.0.1
+
+infra:
+  provider: bicep
+  path: infra
+
+services:
+  api:
+    project: .
+    language: docker
+    host: containerapp
