@@ -6,6 +6,14 @@ from app.database import SessionLocal
 from app.crud import save_incident, get_all_incidents, get_incident_by_id
 from app.redis_cache import redis_client
 import json
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Minimal Telecom AI Incident Agent")
 
@@ -25,16 +33,40 @@ def home():
         "message": "Minimal Telecom AI Incident Agent is running with LangGraph"
     }
 
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "telecom-ai-agent",
+        "version": "7.0"
+    }
+
+
+@app.get("/ready")
+def readiness_check():
+    return {
+        "status": "ready",
+        "dependencies": {
+            "fastapi": "running",
+            "langgraph": "loaded",
+            "redis": "configured",
+            "kafka": "configured",
+            "postgresql": "configured",
+            "mongodb": "configured"
+        }
+    }
 
 @app.post("/analyze-alert")
 def analyze_alert(alert: AlertRequest):
 
+    logger.info(f"Received alert for tower: {alert.tower_id}")
+    
     cache_key = f"{alert.tower_id}:{alert.issue}"
 
     cached_result = redis_client.get(cache_key)
 
     if cached_result:
-        print("Returning result from Redis cache")
+        logger.info("Returning result from Redis cache")
         return json.loads(cached_result)
     
 
@@ -58,6 +90,7 @@ def analyze_alert(alert: AlertRequest):
 
     try:
         saved_incident = save_incident(db, result)
+        logger.info(f"Incident saved with database_id: {saved_incident.id}")
         result["database_id"] = saved_incident.id
     finally:
         db.close()

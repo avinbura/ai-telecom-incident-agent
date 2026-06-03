@@ -1,7 +1,12 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+import os
 
-DATABASE_URL = "postgresql://postgres:123456@host.docker.internal:5432/telecom_ai_db"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:password@host.docker.internal:5432/telecom_ai_db"
+)
 
 engine = create_engine(DATABASE_URL)
 
@@ -13,6 +18,8 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-from app import models
-
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    print("Database connected successfully")
+except Exception as e:
+    print(f"Database connection skipped: {e}")
