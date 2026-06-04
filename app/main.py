@@ -1,10 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from app.graph import build_incident_graph
 from app import database
 from app.database import SessionLocal
 from app.crud import save_incident, get_all_incidents, get_incident_by_id
 from app.redis_cache import redis_client
+from app.schemas_auth import UserRegister, UserLogin, TokenResponse
+from app.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.auth import get_current_user
 import json
 import logging
 
@@ -18,7 +22,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="Minimal Telecom AI Incident Agent")
 
 incident_graph = build_incident_graph()
-
+fake_users_db = {}
 
 class AlertRequest(BaseModel):
     tower_id: str
@@ -56,11 +60,91 @@ def readiness_check():
         }
     }
 
+
+@app.post("/register")
+def register_user(user: UserRegister):
+    if user.username in fake_users_db:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists"
+        )
+
+    hashed_password = hash_password(user.password)
+
+    fake_users_db[user.username] = {
+        "username": user.username,
+        "hashed_password": hashed_password
+    }
+
+    return {
+        "message": "User registered successfully",
+        "username": user.username
+    }
+
+
+@app.post("/login", response_model=TokenResponse)
+def login_user(user: UserLogin):
+    db_user = fake_users_db.get(user.username)
+
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    if not verify_password(user.password, db_user["hashed_password"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    access_token = create_access_token(
+        data={"sub": user.username}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@app.post("/token", response_model=TokenResponse)
+def login_for_swagger(
+    form_data: OAuth2PasswordRequestForm = Depends()
+):
+    db_user = fake_users_db.get(form_data.username)
+
+    if not db_user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    if not verify_password(
+        form_data.password,
+        db_user["hashed_password"]
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    access_token = create_access_token(
+        data={"sub": form_data.username}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
 @app.post("/analyze-alert")
-def analyze_alert(alert: AlertRequest):
+def analyze_alert(
+    alert: AlertRequest,
+    current_user: str = Depends(get_current_user)
+):
 
     logger.info(f"Received alert for tower: {alert.tower_id}")
-    
+
     cache_key = f"{alert.tower_id}:{alert.issue}"
 
     cached_result = redis_client.get(cache_key)
@@ -68,7 +152,6 @@ def analyze_alert(alert: AlertRequest):
     if cached_result:
         logger.info("Returning result from Redis cache")
         return json.loads(cached_result)
-    
 
     result = incident_graph.invoke({
         "tower_id": alert.tower_id,
@@ -86,22 +169,24 @@ def analyze_alert(alert: AlertRequest):
         "agents_executed": []
     })
 
-    db = SessionLocal()
-
     try:
+        db = SessionLocal()
         saved_incident = save_incident(db, result)
-        logger.info(f"Incident saved with database_id: {saved_incident.id}")
         result["database_id"] = saved_incident.id
-    finally:
         db.close()
+        logger.info(f"Incident saved with database_id: {saved_incident.id}")
 
-        redis_client.set(
+    except Exception as e:
+        logger.warning(f"Database save skipped: {e}")
+        result["database_id"] = None
+
+    redis_client.set(
         cache_key,
         json.dumps(result),
         ex=300
     )
-    
-    return result 
+
+    return result
 
 @app.get("/incidents")
 def get_incidents():
