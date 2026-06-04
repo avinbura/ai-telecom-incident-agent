@@ -2,6 +2,7 @@ from kafka import KafkaProducer
 import json
 import time
 
+KAFKA_TOPIC = "telecom-alerts"
 
 producer = KafkaProducer(
     bootstrap_servers = 'localhost:9092',
@@ -32,7 +33,7 @@ alerts = [
 for alert in alerts:
 
     producer.send(
-        'telecom-alerts',
+        KAFKA_TOPIC,
         value=alert
     )
 
