@@ -13,6 +13,15 @@ services:
       - redis
       - zookeeper
       - kafka
+  
+  telecom-consumer:
+    build: .
+    container_name: telecom-consumer
+    command: python -u app/kafka_consumer.py
+    depends_on:
+      - kafka
+      - telecom-ai-agent
+    
 
   redis:
     image: redis
