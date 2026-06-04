@@ -8,7 +8,7 @@ from app.crud import save_incident, get_all_incidents, get_incident_by_id
 from app.redis_cache import redis_client
 from app.schemas_auth import UserRegister, UserLogin, TokenResponse
 from app.auth import hash_password, verify_password, create_access_token, get_current_user
-from app.auth import get_current_user
+from app.metrics_store import update_metrics, update_failed_requests, get_metrics
 import json
 import logging
 
@@ -16,7 +16,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Minimal Telecom AI Incident Agent")
@@ -27,6 +26,7 @@ fake_users_db = {}
 class AlertRequest(BaseModel):
     tower_id: str
     issue: str
+    description: str
     packet_loss: float
     latency_ms: float
 
@@ -42,7 +42,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": "telecom-ai-agent",
-        "version": "7.0"
+        "version": "10.0"
     }
 
 
@@ -60,6 +60,13 @@ def readiness_check():
         }
     }
 
+@app.get("/metrics")
+def metrics_check():
+    return {
+        "service": "telecom-ai-agent",
+        "version": "10.0",
+        "metrics": get_metrics()
+    }
 
 @app.post("/register")
 def register_user(user: UserRegister):
@@ -142,7 +149,6 @@ def analyze_alert(
     alert: AlertRequest,
     current_user: str = Depends(get_current_user)
 ):
-
     logger.info(f"Received alert for tower: {alert.tower_id}")
 
     cache_key = f"{alert.tower_id}:{alert.issue}"
@@ -156,6 +162,7 @@ def analyze_alert(
     result = incident_graph.invoke({
         "tower_id": alert.tower_id,
         "issue": alert.issue,
+        "description": alert.description,
         "packet_loss": alert.packet_loss,
         "latency_ms": alert.latency_ms,
         "logs": [],
@@ -185,6 +192,8 @@ def analyze_alert(
         json.dumps(result),
         ex=300
     )
+
+    update_metrics(result)
 
     return result
 

@@ -8,6 +8,7 @@ from app.llm_gateway import generate_incident_summary
 class IncidentState(TypedDict):
     tower_id: str
     issue: str
+    description: str
     packet_loss: float
     latency_ms: float
     logs: List[str]
@@ -51,6 +52,7 @@ def read_sop_node(state: IncidentState):
 
     query_text = (
         f"{state['issue']} "
+        f"{state['description']} "
         f"{' '.join(state['logs'])}"
     )
 
@@ -126,6 +128,7 @@ Create a clear incident summary using the information below.
 
 Tower ID: {state["tower_id"]}
 Issue: {state["issue"]}
+Description: {state["description"]}
 Packet Loss: {state["packet_loss"]}%
 Latency: {state["latency_ms"]} ms
 Logs: {state["logs"]}
