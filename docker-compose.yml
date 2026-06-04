@@ -14,13 +14,13 @@ services:
       - zookeeper
       - kafka
   
-  telecom-consumer:
-    build: .
-    container_name: telecom-consumer
-    command: python -u app/kafka_consumer.py
-    depends_on:
-      - kafka
-      - telecom-ai-agent
+ # telecom-consumer:
+  #  build: .
+   # container_name: telecom-consumer
+    # command: python -u app/kafka_consumer.py
+    # depends_on:
+     # - kafka
+     # - telecom-ai-agent
     
 
   redis:
